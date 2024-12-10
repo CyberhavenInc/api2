@@ -409,28 +409,28 @@ func TestMethod(t *testing.T) {
 	}{
 		{
 			method:     Method(&servicePtr, "Hello"),
-			pkgFull:    "github.com/starius/api2",
+			pkgFull:    "github.com/CyberhavenInc/api2",
 			pkgName:    "api2",
 			structName: "ServiceStruct",
 			methodName: "Hello",
 		},
 		{
 			method:     Method(&servicePtrNil, "Hello"),
-			pkgFull:    "github.com/starius/api2",
+			pkgFull:    "github.com/CyberhavenInc/api2",
 			pkgName:    "api2",
 			structName: "ServiceStruct",
 			methodName: "Hello",
 		},
 		{
 			method:     Method(&serviceInterface, "Hello"),
-			pkgFull:    "github.com/starius/api2",
+			pkgFull:    "github.com/CyberhavenInc/api2",
 			pkgName:    "api2",
 			structName: "ServiceInterface",
 			methodName: "Hello",
 		},
 		{
 			method:     Method(&serviceInterfaceNil, "Hello"),
-			pkgFull:    "github.com/starius/api2",
+			pkgFull:    "github.com/CyberhavenInc/api2",
 			pkgName:    "api2",
 			structName: "ServiceInterface",
 			methodName: "Hello",

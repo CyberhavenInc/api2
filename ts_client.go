@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"text/template"
 
-	"github.com/starius/api2/typegen"
+	"github.com/CyberhavenInc/api2/typegen"
 )
 
 type funcer interface {

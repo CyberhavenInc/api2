@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/starius/api2"
+	"github.com/CyberhavenInc/api2"
 )
 
 type MyError struct {

@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"reflect"
 
+	"github.com/CyberhavenInc/api2/typegen"
 	spec "github.com/getkin/kin-openapi/openapi3"
-	"github.com/starius/api2/typegen"
 )
 
 func GenerateOpenApiSpec(options *TypesGenConfig) {

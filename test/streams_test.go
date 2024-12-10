@@ -10,7 +10,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/starius/api2"
+	"github.com/CyberhavenInc/api2"
 	"github.com/stretchr/testify/require"
 )
 

@@ -6,7 +6,7 @@ import (
 	"context"
 	"net/url"
 
-	"github.com/starius/api2"
+	"github.com/CyberhavenInc/api2"
 )
 
 type Client struct {
