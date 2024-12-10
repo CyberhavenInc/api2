@@ -3,7 +3,7 @@ package example
 import (
 	"net/http"
 
-	"github.com/starius/api2"
+	"github.com/CyberhavenInc/api2"
 )
 
 func GetRoutes(s IEchoService) []api2.Route {

@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/starius/api2"
+	"github.com/CyberhavenInc/api2"
 )
 
 func TestClosingClient(t *testing.T) {

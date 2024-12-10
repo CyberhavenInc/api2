@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/starius/api2"
+	"github.com/CyberhavenInc/api2"
 )
 
 func BenchmarkAPI(b *testing.B) {

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/starius/api2/example"
+	"github.com/CyberhavenInc/api2/example"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 

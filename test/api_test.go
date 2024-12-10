@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/starius/api2"
+	"github.com/CyberhavenInc/api2"
 	"go.uber.org/goleak"
 )
 
