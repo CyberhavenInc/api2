@@ -1,4 +1,4 @@
-module github.com/CyberhavenInc/api2
+module github.com/starius/api2
 
 go 1.19
 

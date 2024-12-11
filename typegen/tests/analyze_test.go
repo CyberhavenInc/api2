@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	gots "github.com/CyberhavenInc/api2/typegen"
-	"github.com/CyberhavenInc/api2/typegen/tests/types"
+	gots "github.com/starius/api2/typegen"
+	"github.com/starius/api2/typegen/tests/types"
 )
 
 func TestV2(t *testing.T) {
