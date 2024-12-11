@@ -47,7 +47,7 @@ func BindRoutes(mux Router, routes []Route, opts ...Option) {
 		}
 		method2handler := make(map[string]http.HandlerFunc, len(routes))
 		for method, routes := range method2routes {
-			method2handler[method] = newHTTPMethodHandler(routes, human, errorf)
+			method2handler[method] = newHTTPMethodHandler(routes, human, errorf, config.middleware)
 		}
 
 		mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
@@ -98,16 +98,16 @@ func GetMatcher(routes []Route) func(*http.Request) (*Route, bool) {
 	}
 }
 
-func newHTTPMethodHandler(routes []Route, human bool, errorf func(format string, args ...interface{})) http.HandlerFunc {
+func newHTTPMethodHandler(routes []Route, human bool, errorf func(format string, args ...interface{}), middleware Middleware) http.HandlerFunc {
 	if len(routes) == 1 && len(findUrlKeys(routes[0].Path)) == 0 {
 		// Single handler without URL parameters.
-		return newHTTPHandler(routes[0], human, errorf)
+		return newHTTPHandler(routes[0], human, errorf, nil)
 	}
 	paths := make([]string, 0, len(routes))
 	handlers := make([]http.HandlerFunc, 0, len(routes))
 	for _, route := range routes {
 		paths = append(paths, route.Path)
-		handlers = append(handlers, newHTTPHandler(route, human, errorf))
+		handlers = append(handlers, newHTTPHandler(route, human, errorf, middleware))
 	}
 	c := newPathClassifier(paths)
 
@@ -129,7 +129,7 @@ func newHTTPMethodHandler(routes []Route, human bool, errorf func(format string,
 	}
 }
 
-func newHTTPHandler(route Route, human bool, errorf func(format string, args ...interface{})) http.HandlerFunc {
+func newHTTPHandler(route Route, human bool, errorf func(format string, args ...interface{}), middleware Middleware) http.HandlerFunc {
 	h := route.Handler
 	t := route.Transport
 	if t == nil {
@@ -160,9 +160,21 @@ func newHTTPHandler(route Route, human bool, errorf func(format string, args ...
 			return
 		}
 
-		results := handlerValue.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(req)})
-		resp := results[0].Interface()
-		errReflect := results[1].Interface()
+		start := func(ctx context.Context, req any) (any, any) {
+			results := handlerValue.Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(req)})
+			resp := results[0].Interface()
+			errReflect := results[1].Interface()
+
+			return resp, errReflect
+		}
+		var resp any
+		var errReflect any
+		switch middleware != nil {
+		case true:
+			resp, errReflect = middleware(ctx, req, start)
+		default:
+			resp, errReflect = start(ctx, req)
+		}
 
 		if errReflect != nil {
 			errorf("%s %s handler failed: %v", r.Method, r.URL.Path, errReflect)

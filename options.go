@@ -16,6 +16,8 @@ type Config struct {
 	client        HttpClient
 	maxBody       int64
 	human         bool
+
+	middleware Middleware
 }
 
 const defaultMaxBody = 10 * 1024 * 1024
@@ -57,5 +59,11 @@ func MaxBody(maxBody int64) Option {
 func HumanJSON(enabled bool) Option {
 	return func(config *Config) {
 		config.human = enabled
+	}
+}
+
+func AddMiddleware(m Middleware) Option {
+	return func(config *Config) {
+		config.middleware = m
 	}
 }
