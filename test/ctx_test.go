@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CyberhavenInc/api2"
+	"github.com/starius/api2"
 )
 
 func TestCtx(t *testing.T) {

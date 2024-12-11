@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/CyberhavenInc/api2"
+	"github.com/starius/api2"
 )
 
 func TestMaxBody(t *testing.T) {
