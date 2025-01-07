@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"text/template"
 
-	"github.com/CyberhavenInc/api2/typegen"
+	"github.com/starius/api2/typegen"
 )
 
 const yamlRoutes = `{{- range $key, $services := .}}
