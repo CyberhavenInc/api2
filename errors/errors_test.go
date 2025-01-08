@@ -10,7 +10,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/CyberhavenInc/api2"
+	"github.com/starius/api2"
 )
 
 func TestErrToHttp(t *testing.T) {

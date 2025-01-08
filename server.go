@@ -101,7 +101,7 @@ func GetMatcher(routes []Route) func(*http.Request) (*Route, bool) {
 func newHTTPMethodHandler(routes []Route, human bool, errorf func(format string, args ...interface{}), middleware Middleware) http.HandlerFunc {
 	if len(routes) == 1 && len(findUrlKeys(routes[0].Path)) == 0 {
 		// Single handler without URL parameters.
-		return newHTTPHandler(routes[0], human, errorf, nil)
+		return newHTTPHandler(routes[0], human, errorf, middleware)
 	}
 	paths := make([]string, 0, len(routes))
 	handlers := make([]http.HandlerFunc, 0, len(routes))
