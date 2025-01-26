@@ -103,7 +103,33 @@ OUTER:
 			op.RequestBody = &spec.RequestBodyRef{
 				Ref: typegen.RefReqPrefix + r.ReqType,
 			}
+		} else {
+			parameters := []*spec.ParameterRef{}
+			reqFields := reflect.VisibleFields(req)
+			for _, field := range reqFields {
+				if tag, ok := field.Tag.Lookup("query"); ok {
+					parameters = append(parameters, &spec.ParameterRef{
+						Value: &spec.Parameter{
+							Name:     tag,
+							In:       "query",
+							Required: field.Type.Kind() != reflect.Ptr,
+							Schema:   spec.NewSchemaRef("", mapGoTypeToOpenAPISchema(field.Type)),
+						},
+					})
+				} else if tag, ok := field.Tag.Lookup("path"); ok {
+					parameters = append(parameters, &spec.ParameterRef{
+						Value: &spec.Parameter{
+							Name:     tag,
+							In:       "path",
+							Required: true,
+							Schema:   spec.NewSchemaRef("", mapGoTypeToOpenAPISchema(field.Type)),
+						},
+					})
+				}
+			}
+			op.Parameters = parameters
 		}
+
 		if op.Responses == nil {
 			op.Responses = spec.NewResponses()
 		}
@@ -125,4 +151,20 @@ OUTER:
 
 	}
 
+}
+
+func mapGoTypeToOpenAPISchema(t reflect.Type) *spec.Schema {
+	switch t.Kind() {
+	case reflect.Bool:
+		return &spec.Schema{Type: "boolean"}
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return &spec.Schema{Type: "integer"}
+	case reflect.Float32, reflect.Float64:
+		return &spec.Schema{Type: "number"}
+	case reflect.String:
+		return &spec.Schema{Type: "string"}
+	default:
+		return &spec.Schema{Type: "string"}
+	}
 }
