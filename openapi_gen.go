@@ -99,8 +99,10 @@ OUTER:
 		m[fnInfo.PkgName][fnInfo.StructName] = append(m[fnInfo.PkgName][fnInfo.StructName], r)
 		p := swagger.Paths.Find(r.Path)
 		op := spec.NewOperation()
-		op.RequestBody = &spec.RequestBodyRef{
-			Ref: typegen.RefReqPrefix + r.ReqType,
+		if route.Method != "GET" {
+			op.RequestBody = &spec.RequestBodyRef{
+				Ref: typegen.RefReqPrefix + r.ReqType,
+			}
 		}
 		if op.Responses == nil {
 			op.Responses = spec.NewResponses()
