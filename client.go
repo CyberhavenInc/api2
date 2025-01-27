@@ -121,16 +121,9 @@ func (c *Client) Call(ctx context.Context, response, request interface{}) error 
 	var req *http.Request
 	var err error
 
-	if route.Method == http.MethodGet {
-		req, err = http.NewRequestWithContext(ctx, route.Method, url, nil)
-		if err != nil {
-			return fmt.Errorf("failed to create GET request: %w", err)
-		}
-	} else {
-		req, err = t.EncodeRequest(ctx, route.Method, url, request)
-		if err != nil {
-			return fmt.Errorf("failed to encode request: %w", err)
-		}
+	req, err = t.EncodeRequest(ctx, route.Method, url, request)
+	if err != nil {
+		return fmt.Errorf("failed to encode request: %w", err)
 	}
 
 	if c.authorization != "" {
