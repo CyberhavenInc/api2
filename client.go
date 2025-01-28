@@ -118,10 +118,7 @@ func (c *Client) Call(ctx context.Context, response, request interface{}) error 
 		ctx = context.WithValue(ctx, humanType{}, true)
 	}
 
-	var req *http.Request
-	var err error
-
-	req, err = t.EncodeRequest(ctx, route.Method, url, request)
+	req, err := t.EncodeRequest(ctx, route.Method, url, request)
 	if err != nil {
 		return fmt.Errorf("failed to encode request: %w", err)
 	}

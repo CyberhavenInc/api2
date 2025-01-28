@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 
 	spec "github.com/getkin/kin-openapi/openapi3"
 	"github.com/starius/api2/typegen"
@@ -97,37 +98,47 @@ OUTER:
 			m[fnInfo.PkgName] = make(map[string][]routeDef)
 		}
 		m[fnInfo.PkgName][fnInfo.StructName] = append(m[fnInfo.PkgName][fnInfo.StructName], r)
-		p := swagger.Paths.Find(r.Path)
+		normalizedPath := convertColonPathToBraces(r.Path)
+
+		p := swagger.Paths.Find(normalizedPath)
+		if p == nil {
+			p = &spec.PathItem{}
+			swagger.Paths[normalizedPath] = p
+		}
+
 		op := spec.NewOperation()
+
+		parameters := []*spec.ParameterRef{}
+		reqFields := reflect.VisibleFields(req)
+
+		for _, field := range reqFields {
+			if tag, ok := field.Tag.Lookup("query"); ok {
+				parameters = append(parameters, &spec.ParameterRef{
+					Value: &spec.Parameter{
+						Name:     tag,
+						In:       "query",
+						Required: field.Type.Kind() != reflect.Ptr,
+						Schema:   spec.NewSchemaRef("", mapGoTypeToOpenAPISchema(field.Type)),
+					},
+				})
+			} else if tag, ok := field.Tag.Lookup("url"); ok {
+				parameters = append(parameters, &spec.ParameterRef{
+					Value: &spec.Parameter{
+						Name:     tag,
+						In:       "path",
+						Required: true,
+						Schema:   spec.NewSchemaRef("", mapGoTypeToOpenAPISchema(field.Type)),
+					},
+				})
+			}
+		}
+
+		op.Parameters = parameters
+
 		if route.Method != "GET" {
 			op.RequestBody = &spec.RequestBodyRef{
 				Ref: typegen.RefReqPrefix + r.ReqType,
 			}
-		} else {
-			parameters := []*spec.ParameterRef{}
-			reqFields := reflect.VisibleFields(req)
-			for _, field := range reqFields {
-				if tag, ok := field.Tag.Lookup("query"); ok {
-					parameters = append(parameters, &spec.ParameterRef{
-						Value: &spec.Parameter{
-							Name:     tag,
-							In:       "query",
-							Required: field.Type.Kind() != reflect.Ptr,
-							Schema:   spec.NewSchemaRef("", mapGoTypeToOpenAPISchema(field.Type)),
-						},
-					})
-				} else if tag, ok := field.Tag.Lookup("path"); ok {
-					parameters = append(parameters, &spec.ParameterRef{
-						Value: &spec.Parameter{
-							Name:     tag,
-							In:       "path",
-							Required: true,
-							Schema:   spec.NewSchemaRef("", mapGoTypeToOpenAPISchema(field.Type)),
-						},
-					})
-				}
-			}
-			op.Parameters = parameters
 		}
 
 		if op.Responses == nil {
@@ -151,6 +162,16 @@ OUTER:
 
 	}
 
+}
+
+func convertColonPathToBraces(path string) string {
+	parts := strings.Split(path, "/")
+	for i, part := range parts {
+		if len(part) > 0 && part[0] == ':' {
+			parts[i] = "{" + part[1:] + "}"
+		}
+	}
+	return strings.Join(parts, "/")
 }
 
 func mapGoTypeToOpenAPISchema(t reflect.Type) *spec.Schema {
