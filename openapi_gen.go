@@ -126,7 +126,7 @@ OUTER:
 					Value: &spec.Parameter{
 						Name:     tag,
 						In:       "path",
-						Required: true,
+						Required: false,
 						Schema:   spec.NewSchemaRef("", mapGoTypeToOpenAPISchema(field.Type)),
 					},
 				})
