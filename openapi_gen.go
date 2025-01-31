@@ -117,7 +117,7 @@ OUTER:
 					Value: &spec.Parameter{
 						Name:     tag,
 						In:       "query",
-						Required: field.Type.Kind() != reflect.Ptr,
+						Required: false,
 						Schema:   spec.NewSchemaRef("", mapGoTypeToOpenAPISchema(field.Type)),
 					},
 				})
@@ -126,7 +126,7 @@ OUTER:
 					Value: &spec.Parameter{
 						Name:     tag,
 						In:       "path",
-						Required: false,
+						Required: true,
 						Schema:   spec.NewSchemaRef("", mapGoTypeToOpenAPISchema(field.Type)),
 					},
 				})
