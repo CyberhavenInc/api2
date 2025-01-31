@@ -1,6 +1,7 @@
 package typegen
 
 import (
+	"fmt"
 	"reflect"
 
 	spec "github.com/getkin/kin-openapi/openapi3"
@@ -77,12 +78,29 @@ func GenerateOpenApi(p *Parser, s IType) spec.Schema {
 	switch v := s.(type) {
 	case *EnumDef:
 		convertedValues := make([]interface{}, len(v.Values))
-		for i, v := range v.Values {
-			convertedValues[i] = v.value.Interface()
+
+		for i, val := range v.Values {
+			value := val.value.Interface()
+			switch v := value.(type) {
+			case string:
+				convertedValues[i] = v
+			case int, int8, int16, int32, int64:
+				convertedValues[i] = int64(v.(int))
+			case uint, uint8, uint16, uint32, uint64:
+				convertedValues[i] = int64(v.(uint))
+			case float32, float64:
+				convertedValues[i] = float64(v.(float64))
+			default:
+				convertedValues[i] = fmt.Sprintf("%v", v)
+			}
 		}
-		enumType := v.T.Kind().String()
-		if enumType != "string" {
-			enumType = "number"
+
+		enumType := "number"
+		for _, v := range convertedValues {
+			if _, ok := v.(string); ok {
+				enumType = "string"
+				break
+			}
 		}
 		t.Type = enumType
 		t.WithEnum(convertedValues...)
