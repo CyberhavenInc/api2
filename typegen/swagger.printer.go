@@ -3,6 +3,7 @@ package typegen
 import (
 	"fmt"
 	"reflect"
+	"strings"
 
 	spec "github.com/getkin/kin-openapi/openapi3"
 )
@@ -78,33 +79,35 @@ func GenerateOpenApi(p *Parser, s IType) spec.Schema {
 	switch v := s.(type) {
 	case *EnumDef:
 		convertedValues := make([]interface{}, len(v.Values))
+		enumDescriptions := []string{}
+		enumType := v.T.Kind().String()
+		if enumType != "string" {
+			enumType = "number"
+		}
 
 		for i, val := range v.Values {
 			value := val.value.Interface()
+
 			switch v := value.(type) {
+			case fmt.Stringer:
+				convertedValues[i] = i
+				enumDescriptions = append(enumDescriptions, fmt.Sprintf("%v=%v", i, v.String()))
 			case string:
-				convertedValues[i] = v
-			case int, int8, int16, int32, int64:
-				convertedValues[i] = int64(v.(int))
-			case uint, uint8, uint16, uint32, uint64:
-				convertedValues[i] = int64(v.(uint))
-			case float32, float64:
-				convertedValues[i] = float64(v.(float64))
+				convertedValues[i] = i
+				enumDescriptions = append(enumDescriptions, fmt.Sprintf("%v=%v", i, v))
 			default:
-				convertedValues[i] = fmt.Sprintf("%v", v)
+				convertedValues[i] = fmt.Sprintf("%v", value) // Proper fallback
 			}
 		}
 
-		enumType := "number"
-		for _, v := range convertedValues {
-			if _, ok := v.(string); ok {
-				enumType = "string"
-				break
-			}
-		}
 		t.Type = enumType
 		t.WithEnum(convertedValues...)
+		if len(enumDescriptions) > 0 {
+			t.Description = strings.Join(enumDescriptions, ", ")
+		}
+
 		return t
+
 	case *RecordDef:
 		if len(v.Embedded) != 0 {
 			types := make([]*spec.SchemaRef, len(v.Embedded))
