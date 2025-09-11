@@ -111,3 +111,15 @@ func (s *EchoService) Raw(ctx context.Context, req *RawRequest) (*RawResponse, e
 		Token: req.Token,
 	}, nil
 }
+
+func (s *EchoService) AdvancedWildcard(ctx context.Context, req *AdvancedWildcardRequest) (*AdvancedWildcardResponse, error) {
+	return &AdvancedWildcardResponse{
+		Token: []byte(fmt.Sprintf("AdvancedWildcard: %s %s %s %s %s %s", req.ParamA, req.ParamB, req.ParamC, req.ParamD, req.ParamE, req.ParamF)),
+	}, nil
+}
+
+func (s *EchoService) BasicWildcard(ctx context.Context, req *BasicWildcardRequest) (*BasicWildcardResponse, error) {
+	return &BasicWildcardResponse{
+		Token: []byte(fmt.Sprintf("BasicWildcard: %s %s", req.ParamA, req.ParamB)),
+	}, nil
+}

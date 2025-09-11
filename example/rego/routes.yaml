@@ -19,3 +19,9 @@ example:
     Raw:
       method: "POST"
       path: "/raw"
+    AdvancedWildcard:
+      method: "POST"
+      path: "/wildcard/:param_a/static-part/:param_b*/static-part/:param_c/static_part/:param_d*/static_part/:param_e/static_part/:param_f*/static_part"
+    BasicWildcard:
+      method: "POST"
+      path: "/wildcard/:param_a/static-part/:param_b*"

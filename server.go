@@ -34,6 +34,23 @@ func BindRoutes(mux Router, routes []Route, opts ...Option) {
 	errorf := config.errorf
 	human := config.human
 
+	routePaths := make([]string, len(routes))
+	for i, route := range routes {
+		routePaths[i] = fmt.Sprintf("%s: %s", route.Method, route.Path)
+	}
+
+	// Detect route conflicts
+	conflicts := detectRouteConflicts(routePaths)
+	if len(conflicts) > 0 {
+		for _, conflict := range conflicts {
+			conflictMsg := fmt.Sprintf("Route conflict detected:\n  Route %d: %s (specificity score: %d)\n  Route %d: %s (specificity score: %d)\n  Issue: Less specific route appears before more specific route",
+				conflict.route1Index, conflict.route1Path, conflict.route1Score,
+				conflict.route2Index, conflict.route2Path, conflict.route2Score)
+
+			panic(fmt.Sprintf("ROUTE VALIDATION FAILED: %s\n\nSuggestion: reorder routes manually with more specific routes first.", conflictMsg))
+		}
+	}
+
 	path2routes := make(map[string][]Route)
 	for _, route := range routes {
 		path := cutUrlParams(route.Path)
