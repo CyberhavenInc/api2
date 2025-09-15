@@ -2,6 +2,7 @@ package api2
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -458,15 +459,14 @@ func sortRoutesBySpecificity(routePaths []string) []string {
 	}
 
 	// Sort by specificity score (highest first), then by original index for stability
-	for i := 0; i < len(routes); i++ {
-		for j := i + 1; j < len(routes); j++ {
-			// Higher score should come first
-			if routes[i].specificity.score < routes[j].specificity.score ||
-				(routes[i].specificity.score == routes[j].specificity.score && routes[i].originalIndex > routes[j].originalIndex) {
-				routes[i], routes[j] = routes[j], routes[i]
-			}
+	slices.SortFunc(routes, func(a, b routeWithSpec) int {
+		// Higher score should come first
+		if a.specificity.score != b.specificity.score {
+			return b.specificity.score - a.specificity.score // descending order
 		}
-	}
+		// If scores are equal, maintain original order (ascending)
+		return a.originalIndex - b.originalIndex
+	})
 
 	// Extract sorted paths
 	sortedPaths := make([]string, len(routes))

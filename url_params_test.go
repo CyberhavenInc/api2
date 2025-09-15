@@ -293,7 +293,7 @@ func TestRouteSpecificity(t *testing.T) {
 		{
 			name:             "complex route with multiple parameters",
 			routePath:        "/wildcard/:param_a/static-part/:param_b*/static-part/:param_c/static_part",
-			expectedStatic:   4, // "complex", "static-part", "static-part", "static_part"
+			expectedStatic:   4, // "wildcard", "static-part", "static-part", "static_part"
 			expectedRegular:  2, // param_a, param_c
 			expectedWildcard: 1, // param_b*
 			expectedEndsWith: false,
@@ -302,7 +302,7 @@ func TestRouteSpecificity(t *testing.T) {
 		{
 			name:             "very complex route",
 			routePath:        "/wildcard/:param_a/static-part/:param_b*/static-part/:param_c/static_part/:param_d*/static_part/:param_e/static_part/:param_f*/static_part",
-			expectedStatic:   7, // "complex", "static-part", "static-part", "static_part", "static_part", "static_part", "static_part"
+			expectedStatic:   7, // "wildcard", "static-part", "static-part", "static_part", "static_part", "static_part", "static_part"
 			expectedRegular:  3, // param_a, param_c, param_e
 			expectedWildcard: 3, // param_b*, param_d*, param_f*
 			expectedEndsWith: false,
@@ -311,7 +311,7 @@ func TestRouteSpecificity(t *testing.T) {
 		{
 			name:             "simple route with wildcard",
 			routePath:        "/wildcard/:param_a/static-part/:param_b*",
-			expectedStatic:   2, // "complex", "static-part"
+			expectedStatic:   2, // "wildcard", "static-part"
 			expectedRegular:  1, // param_a
 			expectedWildcard: 1, // param_b*
 			expectedEndsWith: true,
