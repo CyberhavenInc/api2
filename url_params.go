@@ -99,29 +99,33 @@ func match(pathParts, maskParts []string, params []bool, count int) (bool, map[s
 	return matchWithWildcards(pathParts, maskParts, params, count, nil)
 }
 
+func matchSimplePattern(pathParts, maskParts []string, params []bool, count int) (bool, map[string]string) {
+	if len(pathParts) != len(maskParts) {
+		return false, nil
+	}
+	// Check if all static parts match.
+	for i := 0; i < len(pathParts); i++ {
+		if !params[i] && pathParts[i] != maskParts[i] {
+			return false, nil
+		}
+	}
+	// Fill values of the parameters.
+	param2value := make(map[string]string, count)
+	for i := 0; i < len(pathParts); i++ {
+		if !params[i] {
+			continue
+		}
+		key := maskParts[i]
+		value := pathParts[i]
+		param2value[key] = value
+	}
+	return true, param2value
+}
+
 func matchWithWildcards(pathParts, maskParts []string, params []bool, count int, wildcards []wildcardInfo) (bool, map[string]string) {
 	// If no wildcards, use the original simple matching logic
 	if len(wildcards) == 0 {
-		if len(pathParts) != len(maskParts) {
-			return false, nil
-		}
-		// Check if all static parts match.
-		for i := 0; i < len(pathParts); i++ {
-			if !params[i] && pathParts[i] != maskParts[i] {
-				return false, nil
-			}
-		}
-		// Fill values of the parameters.
-		param2value := make(map[string]string, count)
-		for i := 0; i < len(pathParts); i++ {
-			if !params[i] {
-				continue
-			}
-			key := maskParts[i]
-			value := pathParts[i]
-			param2value[key] = value
-		}
-		return true, param2value
+		return matchSimplePattern(pathParts, maskParts, params, count)
 	}
 
 	// Complex matching with wildcards
