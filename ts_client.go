@@ -2,6 +2,7 @@ package api2
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -138,6 +139,25 @@ func GenerateTSClient(options *TypesGenConfig) {
 		routes := routesValues[0].Interface().([]Route)
 		allRoutes = append(allRoutes, routes...)
 	}
+
+	// Validate route ordering to prevent conflicts
+	routePaths := make([]string, len(allRoutes))
+	for i, route := range allRoutes {
+		routePaths[i] = fmt.Sprintf("%s: %s", route.Method, route.Path)
+	}
+
+	// Detect route conflicts using existing validation logic
+	conflicts := detectRouteConflicts(routePaths)
+	if len(conflicts) > 0 {
+		for _, conflict := range conflicts {
+			conflictMsg := fmt.Sprintf("Route conflict detected:\n  Route %d: %s (specificity score: %d)\n  Route %d: %s (specificity score: %d)\n  Issue: Less specific route appears before more specific route",
+				conflict.route1Index, conflict.route1Path, conflict.route1Score,
+				conflict.route2Index, conflict.route2Path, conflict.route2Score)
+
+			panicIf(fmt.Errorf("ROUTE VALIDATION FAILED: %s\n\nSuggestion: reorder routes manually with more specific routes first.", conflictMsg))
+		}
+	}
+
 	genRoutes(typesFile, allRoutes, parser, options)
 	if _, err := os.Stat(filepath.Join(options.OutDir, "utils.ts")); os.IsNotExist(err) {
 		utilsFile, err := os.OpenFile(filepath.Join(options.OutDir, "utils.ts"), os.O_WRONLY|os.O_CREATE, 0755)

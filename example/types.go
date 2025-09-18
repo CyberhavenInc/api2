@@ -173,6 +173,28 @@ type RawResponse struct {
 	Token []byte `use_as_body:"true" is_raw:"true"`
 }
 
+type AdvancedWildcardRequest struct {
+	ParamA string `url:"param_a"`
+	ParamB string `url:"param_b"`
+	ParamC string `url:"param_c"`
+	ParamD string `url:"param_d"`
+	ParamE string `url:"param_e"`
+	ParamF string `url:"param_f"`
+}
+
+type AdvancedWildcardResponse struct {
+	Token []byte `use_as_body:"true" is_raw:"true"`
+}
+
+type BasicWildcardRequest struct {
+	ParamA string `url:"param_a"`
+	ParamB string `url:"param_b"`
+}
+
+type BasicWildcardResponse struct {
+	Token []byte `use_as_body:"true" is_raw:"true"`
+}
+
 type IEchoService interface {
 	Hello(ctx context.Context, req *HelloRequest) (*HelloResponse, error)
 	Echo(ctx context.Context, req *EchoRequest) (*EchoResponse, error)
@@ -180,4 +202,6 @@ type IEchoService interface {
 	Stream(ctx context.Context, req *StreamRequest) (*StreamResponse, error)
 	Redirect(ctx context.Context, req *RedirectRequest) (*RedirectResponse, error)
 	Raw(ctx context.Context, req *RawRequest) (*RawResponse, error)
+	AdvancedWildcard(ctx context.Context, req *AdvancedWildcardRequest) (*AdvancedWildcardResponse, error)
+	BasicWildcard(ctx context.Context, req *BasicWildcardRequest) (*BasicWildcardResponse, error)
 }

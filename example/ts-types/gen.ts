@@ -31,6 +31,14 @@ example: {
 				"POST", "/raw",
 				{},
 				{}),
+			AdvancedWildcard: route<example.AdvancedWildcardRequest, example.AdvancedWildcardResponse>(
+				"POST", "/wildcard/:param_a/static-part/:param_b*/static-part/:param_c/static_part/:param_d*/static_part/:param_e/static_part/:param_f*/static_part",
+				{},
+				{}),
+			BasicWildcard: route<example.BasicWildcardRequest, example.BasicWildcardResponse>(
+				"POST", "/wildcard/:param_a/static-part/:param_b*",
+				{},
+				{}),
 	},
 },
 }
@@ -126,6 +134,22 @@ export type RawRequest = {
 
 
 export type RawResponse = {
+}
+
+
+export type AdvancedWildcardRequest = {
+}
+
+
+export type AdvancedWildcardResponse = {
+}
+
+
+export type BasicWildcardRequest = {
+}
+
+
+export type BasicWildcardResponse = {
 }
 
 

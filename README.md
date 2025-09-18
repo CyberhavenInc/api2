@@ -130,6 +130,54 @@ HTTP methods must be different so that they can be distinguished.
 If `Transport` is not set, `DefaultTransport` is used which is defined as
 `&api2.JsonTransport{}`.
 
+## Wildcard URL Parameters
+
+API2 supports wildcard URL parameters that can capture multiple path segments, including forward slashes. This is useful for building APIs that need to handle dynamic paths or file-like structures.
+
+### Wildcard Syntax
+
+Use `:param*` in your route path to define a wildcard parameter that captures zero or more path segments:
+
+```go
+{Method: http.MethodPost, Path: "/files/:path*", Handler: api2.Method(&s, "GetFile")}
+{Method: http.MethodPost, Path: "/api/:version/data/:segments*", Handler: api2.Method(&s, "ProcessData")}
+```
+
+### Examples
+
+**Basic wildcard** - captures remaining path segments:
+- Route: `/files/:path*`
+- URL: `/files/documents/reports/2023/summary.pdf`
+- Captured: `path = "documents/reports/2023/summary.pdf"`
+
+**Wildcard in the middle** - captures segments between static parts:
+- Route: `/api/:version/data/:segments*/processed`
+- URL: `/api/v1/data/user/123/settings/processed`
+- Captured: `version = "v1"`, `segments = "user/123/settings"`
+
+**Complex patterns** with multiple wildcards:
+- Route: `/complex/:param_a/static-part/:param_b*/static-part/:param_c/end`
+- URL: `/complex/value1/static-part/deep/nested/path/static-part/value3/end`
+- Captured: `param_a = "value1"`, `param_b = "deep/nested/path"`, `param_c = "value3"`
+
+### Route Specificity and Conflicts
+
+API2 automatically detects and prevents route conflicts. Routes are ordered by specificity:
+
+1. **Static segments** (highest priority)
+2. **Regular parameters** (`:param`)
+3. **Wildcard parameters** (`:param*`, lowest priority)
+
+Routes with higher specificity scores are matched first, preventing less specific wildcard routes from intercepting more specific ones.
+If routes are not sorted properly, app crashes with descriptive error, asking to sort routes properly.
+
+### Demo Endpoints
+
+The [example](./example) directory includes demo endpoints that showcase wildcard functionality:
+
+- **BasicWildcard**: `POST /wildcard/:param_a/static-part/:param_b*` - demonstrates simple wildcard usage
+- **AdvancedWildcard**: `POST /wildcard/:param_a/static-part/:param_b*/static-part/:param_c/static_part/:param_d*/static_part/:param_e/static_part/:param_f*/static_part` - demonstrates complex patterns with multiple wildcards
+
 **Error handling**. A handler can return any Go error. `JsonTransport`
 by default returns JSON. `Error()` value is put into "error" field of
 that JSON. If the error has `HttpCode() int` method, it is called and

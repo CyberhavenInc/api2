@@ -1,6 +1,24 @@
 {
  "components": {
   "requestBodies": {
+   "example.AdvancedWildcardRequest": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/example.AdvancedWildcardRequest"
+      }
+     }
+    }
+   },
+   "example.BasicWildcardRequest": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/example.BasicWildcardRequest"
+      }
+     }
+    }
+   },
    "example.EchoRequest": {
     "content": {
      "application/json": {
@@ -57,6 +75,18 @@
    }
   },
   "schemas": {
+   "example.AdvancedWildcardRequest": {
+    "type": "object"
+   },
+   "example.AdvancedWildcardResponse": {
+    "type": "object"
+   },
+   "example.BasicWildcardRequest": {
+    "type": "object"
+   },
+   "example.BasicWildcardResponse": {
+    "type": "object"
+   },
    "example.Color": {
     "enum": [
      "color_blue",
@@ -208,8 +238,17 @@
  },
  "openapi": "3.0.0",
  "paths": {
-  "/echo/:user": {
+  "/echo/{user}": {
    "post": {
+    "parameters": [
+     {
+      "in": "path",
+      "name": "user",
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
     "requestBody": {
      "$ref": "#/components/requestBodies/example.EchoRequest"
     },
@@ -235,6 +274,15 @@
   },
   "/hello": {
    "post": {
+    "parameters": [
+     {
+      "in": "query",
+      "name": "key",
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
     "requestBody": {
      "$ref": "#/components/requestBodies/example.HelloRequest"
     },
@@ -285,9 +333,15 @@
   },
   "/redirect": {
    "get": {
-    "requestBody": {
-     "$ref": "#/components/requestBodies/example.RedirectRequest"
-    },
+    "parameters": [
+     {
+      "in": "query",
+      "name": "id",
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
     "responses": {
      "200": {
       "content": {
@@ -344,6 +398,116 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/example.StreamResponse"
+        }
+       }
+      },
+      "description": "info"
+     },
+     "default": {
+      "description": ""
+     }
+    },
+    "tags": [
+     "example"
+    ]
+   }
+  },
+  "/wildcard/{param_a}/static-part/{param_b*}": {
+   "post": {
+    "parameters": [
+     {
+      "in": "path",
+      "name": "param_a",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "param_b",
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "$ref": "#/components/requestBodies/example.BasicWildcardRequest"
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/example.BasicWildcardResponse"
+        }
+       }
+      },
+      "description": "info"
+     },
+     "default": {
+      "description": ""
+     }
+    },
+    "tags": [
+     "example"
+    ]
+   }
+  },
+  "/wildcard/{param_a}/static-part/{param_b*}/static-part/{param_c}/static_part/{param_d*}/static_part/{param_e}/static_part/{param_f*}/static_part": {
+   "post": {
+    "parameters": [
+     {
+      "in": "path",
+      "name": "param_a",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "param_b",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "param_c",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "param_d",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "param_e",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "param_f",
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "$ref": "#/components/requestBodies/example.AdvancedWildcardRequest"
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/example.AdvancedWildcardResponse"
         }
        }
       },

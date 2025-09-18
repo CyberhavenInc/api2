@@ -207,6 +207,24 @@ func GenerateClientCode(getRoutess ...interface{}) (code, clientFile string, err
 		}
 	}
 
+	// Validate route ordering to prevent conflicts
+	routePaths := make([]string, len(routes))
+	for i, route := range routes {
+		routePaths[i] = fmt.Sprintf("%s: %s", route.Method, route.Path)
+	}
+
+	// Detect route conflicts using existing validation logic
+	conflicts := detectRouteConflicts(routePaths)
+	if len(conflicts) > 0 {
+		for _, conflict := range conflicts {
+			conflictMsg := fmt.Sprintf("Route conflict detected:\n  Route %d: %s (specificity score: %d)\n  Route %d: %s (specificity score: %d)\n  Issue: Less specific route appears before more specific route",
+				conflict.route1Index, conflict.route1Path, conflict.route1Score,
+				conflict.route2Index, conflict.route2Path, conflict.route2Score)
+
+			return "", "", fmt.Errorf("ROUTE VALIDATION FAILED: %s\n\nSuggestion: reorder routes manually with more specific routes first.", conflictMsg)
+		}
+	}
+
 	code, err = runTemplate(routes, pkg, api2pkg, getRoutesNames, serviceInterfaces)
 	if err != nil {
 		return "", "", err

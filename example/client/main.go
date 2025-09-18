@@ -84,4 +84,32 @@ func main() {
 		panic(err)
 	}
 	fmt.Println(string(rawRes.Token))
+
+	advancedRes, err := client.AdvancedWildcard(ctx, &example.AdvancedWildcardRequest{
+		ParamA: "A",
+		ParamB: "B/B",
+		ParamC: "C",
+		ParamD: "D/D/D",
+		ParamE: "E",
+		ParamF: "F/F/F/F",
+	})
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(string(advancedRes.Token))
+	if "AdvancedWildcard: A B/B C D/D/D E F/F/F/F" != string(advancedRes.Token) {
+		panic("unexpected advanced wildcard response")
+	}
+
+	basicRes, err := client.BasicWildcard(ctx, &example.BasicWildcardRequest{
+		ParamA: "A",
+		ParamB: "B/B/B",
+	})
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(string(basicRes.Token))
+	if "BasicWildcard: A B/B/B" != string(basicRes.Token) {
+		panic("unexpected basic wildcard response: " + string(basicRes.Token))
+	}
 }

@@ -86,3 +86,21 @@ func (c *Client) Raw(ctx context.Context, req *RawRequest) (res *RawResponse, er
 	}
 	return
 }
+
+func (c *Client) AdvancedWildcard(ctx context.Context, req *AdvancedWildcardRequest) (res *AdvancedWildcardResponse, err error) {
+	res = &AdvancedWildcardResponse{}
+	err = c.api2client.Call(ctx, res, req)
+	if err != nil {
+		return nil, err
+	}
+	return
+}
+
+func (c *Client) BasicWildcard(ctx context.Context, req *BasicWildcardRequest) (res *BasicWildcardResponse, err error) {
+	res = &BasicWildcardResponse{}
+	err = c.api2client.Call(ctx, res, req)
+	if err != nil {
+		return nil, err
+	}
+	return
+}
