@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,8 +13,10 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"strings"
 	"sync"
 
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -42,6 +45,7 @@ type JsonTransport struct {
 }
 
 type humanType struct{}
+type requestContentTypeKey struct{}
 
 func newEncoder(w io.Writer, human bool) *json.Encoder {
 	encoder := json.NewEncoder(w)
@@ -58,9 +62,20 @@ func hasHuman(ctx context.Context) bool {
 	return false
 }
 
+func requestIsJSON(ctx context.Context) bool {
+	if ct, ok := ctx.Value(requestContentTypeKey{}).(string); ok {
+		return strings.Contains(ct, "application/json")
+	}
+	return false
+}
+
 func (h *JsonTransport) DecodeRequest(ctx context.Context, r *http.Request, req interface{}) (context.Context, error) {
 	if h.RequestDecoder != nil {
 		return h.RequestDecoder(ctx, r, req)
+	}
+
+	if ct := r.Header.Get("Content-Type"); ct != "" {
+		ctx = context.WithValue(ctx, requestContentTypeKey{}, ct)
 	}
 
 	if err := readQueryHeaderCookie(req, r.Body, r.URL.Query(), r, r.Header, 0); err != nil {
@@ -75,7 +90,7 @@ func (h *JsonTransport) EncodeResponse(ctx context.Context, w http.ResponseWrite
 		return h.ResponseEncoder(ctx, w, res)
 	}
 
-	body, err := writeQueryHeaderCookie(w, res, nil, nil, w.Header(), hasHuman(ctx))
+	body, err := writeQueryHeaderCookie(ctx, w, res, nil, nil, w.Header(), hasHuman(ctx))
 	if body != nil {
 		panic("unexpected body")
 	}
@@ -125,7 +140,7 @@ func (h *JsonTransport) EncodeRequest(ctx context.Context, method, urlStr string
 		human = humanValue.(bool)
 	}
 	var requestBodyBuffer bytes.Buffer
-	body, err := writeQueryHeaderCookie(&requestBodyBuffer, req, query, request, request.Header, human)
+	body, err := writeQueryHeaderCookie(ctx, &requestBodyBuffer, req, query, request, request.Header, human)
 	if err != nil {
 		return nil, err
 	}
@@ -388,7 +403,7 @@ type headerWriter interface {
 	WriteHeader(statusCode int)
 }
 
-func writeQueryHeaderCookie(w io.Writer, objPtr interface{}, query url.Values, request *http.Request, header http.Header, human bool) (io.ReadCloser, error) {
+func writeQueryHeaderCookie(ctx context.Context, w io.Writer, objPtr interface{}, query url.Values, request *http.Request, header http.Header, human bool) (io.ReadCloser, error) {
 	header.Set("Content-Type", "application/json; charset=UTF-8")
 	if request != nil {
 		request.Header.Set("Accept", "application/json")
@@ -504,6 +519,16 @@ func writeQueryHeaderCookie(w io.Writer, objPtr interface{}, query url.Values, r
 		if !ok {
 			panic("protobuf field is not of type proto.Message")
 		}
+		if requestIsJSON(ctx) {
+			jsonData, err := protojson.Marshal(bodyPtrMessage)
+			if err != nil {
+				return nil, fmt.Errorf("failed to marshal protobuf as JSON: %w", err)
+			}
+			// Content-Type already set to application/json above.
+			_, err = w.Write(jsonData)
+			return nil, err
+		}
+		header.Set("Content-Type", "application/x-protobuf")
 		protoData, err := proto.Marshal(bodyPtrMessage)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal protobuf: %w", err)
@@ -580,7 +605,27 @@ func readQueryHeaderCookie(objPtr interface{}, bodyReadCloser io.ReadCloser, que
 			if err != nil {
 				return err
 			}
-			if err := proto.Unmarshal(buf, bodyPtrMessage); err != nil {
+			contentType := ""
+			if request != nil {
+				contentType = request.Header.Get("Content-Type")
+			}
+			if strings.Contains(contentType, "application/json") {
+				if err := protojson.Unmarshal(buf, bodyPtrMessage); err != nil {
+					preview := buf
+					if len(preview) > 256 {
+						preview = preview[:256]
+					}
+					log.Printf("api2: protojson.Unmarshal failed: err=%v content_type=%q body_len=%d body_utf8=%q",
+						err, contentType, len(buf), string(preview))
+					return err
+				}
+			} else if err := proto.Unmarshal(buf, bodyPtrMessage); err != nil {
+				preview := buf
+				if len(preview) > 256 {
+					preview = preview[:256]
+				}
+				log.Printf("api2: proto.Unmarshal failed: err=%v content_type=%q body_len=%d body_hex=%s body_utf8=%q",
+					err, contentType, len(buf), hex.EncodeToString(preview), string(preview))
 				return err
 			}
 		} else if p.Stream {
