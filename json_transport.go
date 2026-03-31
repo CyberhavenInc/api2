@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -611,21 +610,9 @@ func readQueryHeaderCookie(objPtr interface{}, bodyReadCloser io.ReadCloser, que
 			}
 			if strings.Contains(contentType, "application/json") {
 				if err := protojson.Unmarshal(buf, bodyPtrMessage); err != nil {
-					preview := buf
-					if len(preview) > 256 {
-						preview = preview[:256]
-					}
-					log.Printf("api2: protojson.Unmarshal failed: err=%v content_type=%q body_len=%d body_utf8=%q",
-						err, contentType, len(buf), string(preview))
 					return err
 				}
 			} else if err := proto.Unmarshal(buf, bodyPtrMessage); err != nil {
-				preview := buf
-				if len(preview) > 256 {
-					preview = preview[:256]
-				}
-				log.Printf("api2: proto.Unmarshal failed: err=%v content_type=%q body_len=%d body_hex=%s body_utf8=%q",
-					err, contentType, len(buf), hex.EncodeToString(preview), string(preview))
 				return err
 			}
 		} else if p.Stream {
