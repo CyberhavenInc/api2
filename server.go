@@ -166,7 +166,6 @@ func newHTTPHandler(route Route, human bool, errorf func(format string, args ...
 		req := reflect.New(handlerType.In(1).Elem()).Interface()
 		ctx, err := t.DecodeRequest(ctx, r, req)
 		if err != nil {
-			errorf("%s %s handler failed to parse request: %v", r.Method, r.URL.Path, err)
 			err = t.EncodeError(ctx, w, httpError{
 				Code:    http.StatusBadRequest,
 				Message: fmt.Sprintf("failed to parse request: %v", err),
