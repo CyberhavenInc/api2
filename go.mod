@@ -1,13 +1,13 @@
 module github.com/starius/api2
 
-go 1.19
+go 1.26.0
 
 require (
 	github.com/getkin/kin-openapi v0.114.0
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/goleak v1.2.1
-	golang.org/x/tools v0.14.0
+	golang.org/x/tools v0.43.0
 	google.golang.org/grpc v1.59.0
 	google.golang.org/protobuf v1.33.0
 	moul.io/http2curl v1.0.0
@@ -25,8 +25,8 @@ require (
 	github.com/perimeterx/marshmallow v1.1.5 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/smartystreets/goconvey v1.8.1 // indirect
-	golang.org/x/mod v0.13.0 // indirect
-	golang.org/x/sys v0.13.0 // indirect
+	golang.org/x/mod v0.34.0 // indirect
+	golang.org/x/sync v0.20.0 // indirect
 	google.golang.org/genproto v0.0.0-20231016165738-49dd2c1f3d0b // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20231016165738-49dd2c1f3d0b // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20231016165738-49dd2c1f3d0b // indirect
