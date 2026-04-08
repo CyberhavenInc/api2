@@ -78,7 +78,7 @@ func parseProtobufBody(allowLegacyBinaryFallback bool, contentType string, buf [
 		if jsonErr == nil {
 			return contentType, nil
 		}
-		if allowLegacyBinaryFallback {
+		if allowLegacyBinaryFallback && len(buf) > 0 {
 			if err := proto.Unmarshal(buf, bodyPtrMessage); err == nil {
 				return "application/x-protobuf", nil
 			}

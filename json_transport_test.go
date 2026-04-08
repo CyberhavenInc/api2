@@ -825,3 +825,20 @@ func TestReadQueryHeaderCookieRejectsMislabeledBinaryProtobufInStrictMode(t *tes
 		t.Fatal("readQueryHeaderCookie unexpectedly succeeded in strict mode")
 	}
 }
+
+func TestRQHCRejectsEmptyJSONContentTypeBodyInLenient(t *testing.T) {
+	type protobufBody struct {
+		Body *timestamppb.Timestamp `use_as_body:"true" is_protobuf:"true"`
+	}
+
+	request, err := http.NewRequest(http.MethodPost, "http://example.com", bytes.NewReader(nil))
+	if err != nil {
+		t.Fatalf("http.NewRequest failed: %v", err)
+	}
+	request.Header.Set("Content-Type", "application/json")
+
+	got := &protobufBody{}
+	if _, err := readQueryHeaderCookie(true, got, io.NopCloser(bytes.NewReader(nil)), nil, request, request.Header, http.StatusOK); err == nil {
+		t.Fatal("readQueryHeaderCookie unexpectedly succeeded for empty body in compatibility mode")
+	}
+}
