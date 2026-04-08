@@ -192,7 +192,9 @@ func validateRequestResponse(structType reflect.Type, request bool, path string)
 	}
 }
 
-var DefaultTransport = &JsonTransport{}
+var DefaultTransport = &JsonTransport{
+	AllowLegacyBinaryProtobufWithJSONContentType: true,
+}
 
 type interfaceMethod struct {
 	serviceValue reflect.Value

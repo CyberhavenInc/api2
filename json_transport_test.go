@@ -2,6 +2,7 @@ package api2
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -674,7 +675,7 @@ func TestQueryAndHeader(t *testing.T) {
 		var gotStatus int
 		getBody := func(objPtr interface{}) ([]byte, error) {
 			bodyBuffer := httptest.NewRecorder()
-			bodyReadCloser, err := writeQueryHeaderCookie(bodyBuffer, objPtr, query, request, header, false)
+			bodyReadCloser, err := writeQueryHeaderCookie(context.Background(), bodyBuffer, objPtr, query, request, header, false)
 			if err != nil {
 				return nil, fmt.Errorf("writeQueryHeaderCookie failed: %w", err)
 			}
@@ -729,7 +730,7 @@ func TestQueryAndHeader(t *testing.T) {
 
 		objPtr2 := reflect.New(reflect.TypeOf(tc.objPtr).Elem()).Interface()
 		bodyReadCloser2 := io.NopCloser(bytes.NewReader(bodyBytes))
-		if err := readQueryHeaderCookie(objPtr2, bodyReadCloser2, query, request, header, gotStatus); err != nil {
+		if _, err := readQueryHeaderCookie(false, objPtr2, bodyReadCloser2, query, request, header, gotStatus); err != nil {
 			t.Errorf("case %d: readQueryHeaderCookie failed: %v", i, err)
 		}
 
@@ -770,5 +771,57 @@ func TestQueryAndHeader(t *testing.T) {
 			}
 			t.Errorf("case %d: decoded object is not equal to source object:\n got: %#v, %s\n want: %#v, %s", i, objPtr2, gotJson, tc.objPtr, wantJson)
 		}
+	}
+}
+
+func TestReadQueryHeaderCookieFallsBackToBinaryProtobuf(t *testing.T) {
+	type protobufBody struct {
+		Body *timestamppb.Timestamp `use_as_body:"true" is_protobuf:"true"`
+	}
+
+	want := timestamppb.New(time.Date(2020, time.July, 10, 11, 30, 0, 0, time.UTC))
+	body, err := proto.Marshal(want)
+	if err != nil {
+		t.Fatalf("proto.Marshal failed: %v", err)
+	}
+
+	request, err := http.NewRequest(http.MethodPost, "http://example.com", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("http.NewRequest failed: %v", err)
+	}
+	request.Header.Set("Content-Type", "application/json")
+
+	got := &protobufBody{}
+	actualContentType, err := readQueryHeaderCookie(true, got, io.NopCloser(bytes.NewReader(body)), nil, request, request.Header, http.StatusOK)
+	if err != nil {
+		t.Fatalf("readQueryHeaderCookie failed: %v", err)
+	}
+	if actualContentType != "application/x-protobuf" {
+		t.Fatalf("effective content type = %q, want application/x-protobuf", actualContentType)
+	}
+	if !proto.Equal(got.Body, want) {
+		t.Fatalf("decoded protobuf = %v, want %v", got.Body, want)
+	}
+}
+
+func TestReadQueryHeaderCookieRejectsMislabeledBinaryProtobufInStrictMode(t *testing.T) {
+	type protobufBody struct {
+		Body *timestamppb.Timestamp `use_as_body:"true" is_protobuf:"true"`
+	}
+
+	body, err := proto.Marshal(timestamppb.New(time.Date(2020, time.July, 10, 11, 30, 0, 0, time.UTC)))
+	if err != nil {
+		t.Fatalf("proto.Marshal failed: %v", err)
+	}
+
+	request, err := http.NewRequest(http.MethodPost, "http://example.com", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("http.NewRequest failed: %v", err)
+	}
+	request.Header.Set("Content-Type", "application/json")
+
+	got := &protobufBody{}
+	if _, err := readQueryHeaderCookie(false, got, io.NopCloser(bytes.NewReader(body)), nil, request, request.Header, http.StatusOK); err == nil {
+		t.Fatal("readQueryHeaderCookie unexpectedly succeeded in strict mode")
 	}
 }

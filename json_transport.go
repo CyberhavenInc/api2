@@ -35,6 +35,10 @@ type JsonTransport struct {
 	ResponseDecoder func(context.Context, *http.Response, interface{}) error
 	ErrorDecoder    func(context.Context, *http.Response) error
 
+	// Temporary compatibility mode for legacy clients that send binary protobuf
+	// bodies while incorrectly labeling them as application/json.
+	AllowLegacyBinaryProtobufWithJSONContentType bool
+
 	// Errors whose structure is preserved and parsed back by api2 Client.
 	// Values in the map are sample objects of error types. Keys in the map
 	// are user-provided names of such errors. This value is passed in a
@@ -68,6 +72,33 @@ func requestIsJSON(ctx context.Context) bool {
 	return false
 }
 
+func parseProtobufBody(allowLegacyBinaryFallback bool, contentType string, buf []byte, bodyPtrMessage proto.Message) (string, error) {
+	if strings.Contains(contentType, "application/json") {
+		jsonErr := protojson.Unmarshal(buf, bodyPtrMessage)
+		if jsonErr == nil {
+			return contentType, nil
+		}
+		if allowLegacyBinaryFallback {
+			if err := proto.Unmarshal(buf, bodyPtrMessage); err == nil {
+				return "application/x-protobuf", nil
+			}
+		}
+		return "", jsonErr
+	}
+
+	if err := proto.Unmarshal(buf, bodyPtrMessage); err != nil {
+		return "", err
+	}
+	return contentType, nil
+}
+
+func (h *JsonTransport) allowLegacyBinaryProtobufFallback() bool {
+	if h == nil {
+		return false
+	}
+	return h.AllowLegacyBinaryProtobufWithJSONContentType
+}
+
 func (h *JsonTransport) DecodeRequest(ctx context.Context, r *http.Request, req interface{}) (context.Context, error) {
 	if h.RequestDecoder != nil {
 		return h.RequestDecoder(ctx, r, req)
@@ -77,8 +108,12 @@ func (h *JsonTransport) DecodeRequest(ctx context.Context, r *http.Request, req 
 		ctx = context.WithValue(ctx, requestContentTypeKey{}, ct)
 	}
 
-	if err := readQueryHeaderCookie(req, r.Body, r.URL.Query(), r, r.Header, 0); err != nil {
+	actualContentType, err := readQueryHeaderCookie(h.allowLegacyBinaryProtobufFallback(), req, r.Body, r.URL.Query(), r, r.Header, 0)
+	if err != nil {
 		return ctx, err
+	}
+	if actualContentType != "" {
+		ctx = context.WithValue(ctx, requestContentTypeKey{}, actualContentType)
 	}
 
 	return ctx, nil
@@ -167,7 +202,7 @@ func (h *JsonTransport) DecodeResponse(ctx context.Context, res *http.Response, 
 		return h.ResponseDecoder(ctx, res, response)
 	}
 
-	if err := readQueryHeaderCookie(response, res.Body, nil, nil, res.Header, res.StatusCode); err != nil {
+	if _, err := readQueryHeaderCookie(h.allowLegacyBinaryProtobufFallback(), response, res.Body, nil, nil, res.Header, res.StatusCode); err != nil {
 		return err
 	}
 
@@ -565,7 +600,7 @@ func writeQueryHeaderCookie(ctx context.Context, w io.Writer, objPtr interface{}
 	}
 }
 
-func readQueryHeaderCookie(objPtr interface{}, bodyReadCloser io.ReadCloser, query url.Values, request *http.Request, header http.Header, status int) error {
+func readQueryHeaderCookie(allowLegacyBinaryFallback bool, objPtr interface{}, bodyReadCloser io.ReadCloser, query url.Values, request *http.Request, header http.Header, status int) (string, error) {
 	objType := reflect.TypeOf(objPtr).Elem()
 	p0, has := prepared.Load(objType)
 	if !has {
@@ -573,6 +608,7 @@ func readQueryHeaderCookie(objPtr interface{}, bodyReadCloser io.ReadCloser, que
 		prepared.Store(objType, p0)
 	}
 	p := p0.(*preparedType)
+	actualRequestContentType := ""
 
 	objValue := reflect.ValueOf(objPtr).Elem()
 
@@ -602,30 +638,28 @@ func readQueryHeaderCookie(objPtr interface{}, bodyReadCloser io.ReadCloser, que
 			}
 			buf, err := io.ReadAll(bodyReadCloser)
 			if err != nil {
-				return err
+				return "", err
 			}
 			contentType := ""
 			if request != nil {
 				contentType = request.Header.Get("Content-Type")
 			}
-			if strings.Contains(contentType, "application/json") {
-				if err := protojson.Unmarshal(buf, bodyPtrMessage); err != nil {
-					return err
-				}
-			} else if err := proto.Unmarshal(buf, bodyPtrMessage); err != nil {
-				return err
+			actualContentType, err := parseProtobufBody(allowLegacyBinaryFallback, contentType, buf, bodyPtrMessage)
+			if err != nil {
+				return "", err
 			}
+			actualRequestContentType = actualContentType
 		} else if p.Stream {
 			fieldValue.Set(reflect.ValueOf(bodyReadCloser))
 		} else if p.Raw {
 			buf, err := io.ReadAll(bodyReadCloser)
 			if err != nil {
-				return err
+				return "", err
 			}
 			fieldValue.Set(reflect.ValueOf(buf))
 		} else {
 			if err := json.NewDecoder(bodyReadCloser).Decode(bodyPtr); err != nil {
-				return err
+				return "", err
 			}
 		}
 	} else if p.NoJsonFields {
@@ -633,14 +667,14 @@ func readQueryHeaderCookie(objPtr interface{}, bodyReadCloser io.ReadCloser, que
 	} else if p.NoSpecialFields {
 		// Parse JSON into the original structure.
 		if err := json.NewDecoder(bodyReadCloser).Decode(objPtr); err != nil {
-			return err
+			return "", err
 		}
 	} else {
 		// JSON fields mixed with header and/or query fields.
 		// Parse JSON into a temporary struct and copy fields into the original struct.
 		jsonPtrValue := reflect.New(p.TypeForJson)
 		if err := json.NewDecoder(bodyReadCloser).Decode(jsonPtrValue.Interface()); err != nil {
-			return err
+			return "", err
 		}
 		jsonValue := jsonPtrValue.Elem()
 		for _, m := range p.JsonMapping {
@@ -651,7 +685,7 @@ func readQueryHeaderCookie(objPtr interface{}, bodyReadCloser io.ReadCloser, que
 	if !p.Stream {
 		// Drain the reader in case we skipped parsing or something is left.
 		if _, err := io.Copy(io.Discard, bodyReadCloser); err != nil {
-			return err
+			return "", err
 		}
 	}
 
@@ -660,7 +694,7 @@ func readQueryHeaderCookie(objPtr interface{}, bodyReadCloser io.ReadCloser, que
 		value := query.Get(m.Key)
 		if err := fromString(fieldPtr, value); err != nil {
 			field := objType.Field(m.Field)
-			return fmt.Errorf("failed to parse value %q from query key %s for field %s: %w", value, m.Key, field.Name, err)
+			return "", fmt.Errorf("failed to parse value %q from query key %s for field %s: %w", value, m.Key, field.Name, err)
 		}
 	}
 
@@ -669,7 +703,7 @@ func readQueryHeaderCookie(objPtr interface{}, bodyReadCloser io.ReadCloser, que
 		value := header.Get(m.Key)
 		if err := fromString(fieldPtr, value); err != nil {
 			field := objType.Field(m.Field)
-			return fmt.Errorf("failed to parse value %q from header key %s for field %s: %w", value, m.Key, field.Name, err)
+			return "", fmt.Errorf("failed to parse value %q from header key %s for field %s: %w", value, m.Key, field.Name, err)
 		}
 	}
 
@@ -691,7 +725,7 @@ func readQueryHeaderCookie(objPtr interface{}, bodyReadCloser io.ReadCloser, que
 			}
 			if err := fromString(fieldPtr, value); err != nil {
 				field := objType.Field(m.Field)
-				return fmt.Errorf("failed to parse value %q from cookie key %s for field %s: %w", value, m.Key, field.Name, err)
+				return "", fmt.Errorf("failed to parse value %q from cookie key %s for field %s: %w", value, m.Key, field.Name, err)
 			}
 		} else {
 			c, has := name2cookie[m.Key]
@@ -704,11 +738,11 @@ func readQueryHeaderCookie(objPtr interface{}, bodyReadCloser io.ReadCloser, que
 
 	if len(p.UrlMapping) != 0 {
 		if request == nil {
-			return fmt.Errorf("must specify request to set URL parameters")
+			return "", fmt.Errorf("must specify request to set URL parameters")
 		}
 		param2valueValue := request.Context().Value(paramMapType{})
 		if param2valueValue == nil {
-			return fmt.Errorf("param2value map is not attached to ctx")
+			return "", fmt.Errorf("param2value map is not attached to ctx")
 		}
 		param2value := param2valueValue.(map[string]string)
 		for _, m := range p.UrlMapping {
@@ -716,10 +750,10 @@ func readQueryHeaderCookie(objPtr interface{}, bodyReadCloser io.ReadCloser, que
 			value := param2value[m.Key]
 			if err := fromString(fieldPtr, value); err != nil {
 				field := objType.Field(m.Field)
-				return fmt.Errorf("failed to parse value %q from URL parameter :%s for field %s: %w", value, m.Key, field.Name, err)
+				return "", fmt.Errorf("failed to parse value %q from URL parameter :%s for field %s: %w", value, m.Key, field.Name, err)
 			}
 		}
 	}
 
-	return nil
+	return actualRequestContentType, nil
 }

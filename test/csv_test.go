@@ -200,7 +200,7 @@ func TestErrorCSV(t *testing.T) {
 	}
 
 	getHandler := func(ctx context.Context, req *Request) (res *api2.CsvResponse, err error) {
-		return nil, errors.NotFound(wantMessage)
+		return nil, errors.NotFound("%s", wantMessage)
 	}
 
 	routes := []api2.Route{
