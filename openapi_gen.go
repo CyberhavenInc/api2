@@ -33,9 +33,10 @@ func GenerateOpenApiSpec(options *TypesGenConfig) {
 	swag := spec.T{
 		OpenAPI: "3.0.0",
 		Info: &spec.Info{
+			Title:   "Cyberhaven API",
 			Version: "3.0.0",
 		},
-		Paths: spec.Paths{},
+		Paths: spec.NewPaths(),
 		Components: &spec.Components{
 			RequestBodies: spec.RequestBodies{},
 		},
@@ -103,7 +104,7 @@ OUTER:
 		p := swagger.Paths.Find(normalizedPath)
 		if p == nil {
 			p = &spec.PathItem{}
-			swagger.Paths[normalizedPath] = p
+			swagger.Paths.Set(normalizedPath, p)
 		}
 
 		op := spec.NewOperation()
@@ -126,7 +127,7 @@ OUTER:
 					Value: &spec.Parameter{
 						Name:     tag,
 						In:       "path",
-						Required: false, // TODO: fix source definition with omitempty then resolve optional params here
+						Required: true,
 						Schema:   spec.NewSchemaRef("", mapGoTypeToOpenAPISchema(field.Type)),
 					},
 				})
@@ -152,11 +153,6 @@ OUTER:
 		swagger.Components.RequestBodies[r.ReqType] = &spec.RequestBodyRef{
 			Value: spec.NewRequestBody().WithContent(spec.NewContentWithSchemaRef(spec.NewSchemaRef(typegen.RefSchemaPrefix+r.ReqType, nil), []string{"application/json"})),
 		}
-		if p == nil {
-			pi := &spec.PathItem{}
-			swagger.Paths[r.Path] = pi
-			p = pi
-		}
 		op.Tags = append(op.Tags, r.FnInfo.PkgName)
 		p.SetOperation(r.Method, op)
 
@@ -177,15 +173,15 @@ func convertColonPathToBraces(path string) string {
 func mapGoTypeToOpenAPISchema(t reflect.Type) *spec.Schema {
 	switch t.Kind() {
 	case reflect.Bool:
-		return &spec.Schema{Type: "boolean"}
+		return spec.NewBoolSchema()
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return &spec.Schema{Type: "integer"}
+		return spec.NewIntegerSchema()
 	case reflect.Float32, reflect.Float64:
-		return &spec.Schema{Type: "number"}
+		return spec.NewFloat64Schema()
 	case reflect.String:
-		return &spec.Schema{Type: "string"}
+		return spec.NewStringSchema()
 	default:
-		return &spec.Schema{Type: "string"}
+		return spec.NewStringSchema()
 	}
 }
