@@ -9,6 +9,11 @@ import (
 const RefSchemaPrefix = "#/components/schemas/"
 const RefReqPrefix = "#/components/requestBodies/"
 
+func schemaTypes(types ...string) *spec.Types {
+	openAPITypes := spec.Types(types)
+	return &openAPITypes
+}
+
 func PrintSwagger(p *Parser, swag *spec.T) {
 	def := spec.Schemas{}
 
@@ -31,7 +36,7 @@ func typeToSwagger(t reflect.Type, swaggerType *spec.SchemaRef, getTypeName Type
 		return typeToSwagger(t, swaggerType, getTypeName)
 	case k == reflect.Struct:
 		if isDate(t) {
-			swaggerType.Value.Type = "string"
+			swaggerType.Value.Type = schemaTypes("string")
 			swaggerType.Value.Format = "date-time"
 			return swaggerType
 		}
@@ -43,19 +48,19 @@ func typeToSwagger(t reflect.Type, swaggerType *spec.SchemaRef, getTypeName Type
 		swaggerType.Ref = stringRef
 		return swaggerType
 	case isNumber(k):
-		swaggerType.Value.Type = "number"
+		swaggerType.Value.Type = schemaTypes("number")
 		return swaggerType
 	case k == reflect.String && isEnum(t):
 		swaggerType.Ref = RefSchemaPrefix + getTypeName(t)
 		return swaggerType
 	case k == reflect.String:
-		swaggerType.Value.Type = "string"
+		swaggerType.Value.Type = schemaTypes("string")
 		return swaggerType
 	case k == reflect.Bool:
-		swaggerType.Value.Type = "boolean"
+		swaggerType.Value.Type = schemaTypes("boolean")
 		return swaggerType
 	case k == reflect.Slice || k == reflect.Array:
-		swaggerType.Value.Type = "array"
+		swaggerType.Value.Type = schemaTypes("array")
 		props := &spec.SchemaRef{}
 		swaggerType.Value.Items = typeToSwagger(t.Elem(), props, getTypeName)
 		return swaggerType
@@ -63,7 +68,7 @@ func typeToSwagger(t reflect.Type, swaggerType *spec.SchemaRef, getTypeName Type
 		swaggerType.Value.AdditionalProperties = spec.AdditionalProperties{
 			Schema: typeToSwagger(t.Elem(), &spec.SchemaRef{}, getTypeName),
 		}
-		swaggerType.Value.Type = "object"
+		swaggerType.Value.Type = schemaTypes("object")
 		return swaggerType
 	}
 	return swaggerType
@@ -84,7 +89,7 @@ func GenerateOpenApi(p *Parser, s IType) spec.Schema {
 		if enumType != "string" {
 			enumType = "number"
 		}
-		t.Type = enumType
+		t.Type = schemaTypes(enumType)
 		t.WithEnum(convertedValues...)
 		return t
 	case *RecordDef:
@@ -94,10 +99,10 @@ func GenerateOpenApi(p *Parser, s IType) spec.Schema {
 				r := spec.NewSchemaRef(RefSchemaPrefix+p.GetVisited(v).RefName(), nil)
 				types[i] = r
 			}
-			t.AllOf = append(t.OneOf, types...)
+			t.AllOf = append(t.AllOf, types...)
 			t.Properties = map[string]*spec.SchemaRef{}
 		}
-		propertiesTypes.Type = "object"
+		propertiesTypes.Type = schemaTypes("object")
 		for _, field := range v.Fields {
 			scm := spec.NewSchemaRef("", spec.NewSchema())
 			if field.Type == nil {
