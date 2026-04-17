@@ -640,10 +640,7 @@ func readQueryHeaderCookie(allowLegacyBinaryFallback bool, objPtr interface{}, b
 			if err != nil {
 				return "", err
 			}
-			contentType := ""
-			if request != nil {
-				contentType = request.Header.Get("Content-Type")
-			}
+			contentType := header.Get("Content-Type")
 			actualContentType, err := parseProtobufBody(allowLegacyBinaryFallback, contentType, buf, bodyPtrMessage)
 			if err != nil {
 				return "", err
