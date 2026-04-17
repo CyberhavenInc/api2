@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -823,6 +824,95 @@ func TestReadQueryHeaderCookieRejectsMislabeledBinaryProtobufInStrictMode(t *tes
 	got := &protobufBody{}
 	if _, err := readQueryHeaderCookie(false, got, io.NopCloser(bytes.NewReader(body)), nil, request, request.Header, http.StatusOK); err == nil {
 		t.Fatal("readQueryHeaderCookie unexpectedly succeeded in strict mode")
+	}
+}
+
+func TestParseProtobufBody(t *testing.T) {
+	sample := timestamppb.New(time.Date(2020, time.July, 10, 11, 30, 0, 0, time.UTC))
+	protoBytes, err := proto.Marshal(sample)
+	if err != nil {
+		t.Fatalf("proto.Marshal failed: %v", err)
+	}
+	jsonBytes, err := protojson.Marshal(sample)
+	if err != nil {
+		t.Fatalf("protojson.Marshal failed: %v", err)
+	}
+
+	cases := []struct {
+		name            string
+		allowLegacy     bool
+		contentType     string
+		body            []byte
+		wantContentType string
+		wantErr         bool
+	}{
+		{
+			name:            "application/json decodes as protojson",
+			contentType:     "application/json",
+			body:            jsonBytes,
+			wantContentType: "application/json",
+		},
+		{
+			name:            "application/json with charset decodes as protojson",
+			contentType:     "application/json; charset=UTF-8",
+			body:            jsonBytes,
+			wantContentType: "application/json; charset=UTF-8",
+		},
+		{
+			name:            "application/x-protobuf decodes as binary protobuf",
+			contentType:     "application/x-protobuf",
+			body:            protoBytes,
+			wantContentType: "application/x-protobuf",
+		},
+		{
+			name:            "empty content type decodes as binary protobuf",
+			contentType:     "",
+			body:            protoBytes,
+			wantContentType: "",
+		},
+		{
+			name:            "legacy fallback decodes mislabeled binary as protobuf",
+			allowLegacy:     true,
+			contentType:     "application/json",
+			body:            protoBytes,
+			wantContentType: "application/x-protobuf",
+		},
+		{
+			name:        "strict mode rejects mislabeled binary",
+			allowLegacy: false,
+			contentType: "application/json",
+			body:        protoBytes,
+			wantErr:     true,
+		},
+		{
+			name:        "legacy fallback on empty JSON body fails",
+			allowLegacy: true,
+			contentType: "application/json",
+			body:        []byte{},
+			wantErr:     true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := &timestamppb.Timestamp{}
+			actual, err := parseProtobufBody(tc.allowLegacy, tc.contentType, tc.body, got)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("expected error, got nil (actualContentType=%q)", actual)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if actual != tc.wantContentType {
+				t.Errorf("actualContentType = %q, want %q", actual, tc.wantContentType)
+			}
+			if !proto.Equal(got, sample) {
+				t.Errorf("decoded = %v, want %v", got, sample)
+			}
+		})
 	}
 }
 

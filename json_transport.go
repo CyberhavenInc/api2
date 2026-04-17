@@ -553,12 +553,15 @@ func writeQueryHeaderCookie(ctx context.Context, w io.Writer, objPtr interface{}
 		if !ok {
 			panic("protobuf field is not of type proto.Message")
 		}
-		if requestIsJSON(ctx) {
+		// requestIsJSON is only meaningful on the server, where we echo the
+		// caller's encoding. On the client (request != nil) always send
+		// binary protobuf, regardless of any ctx value inherited from an
+		// inbound handler.
+		if request == nil && requestIsJSON(ctx) {
 			jsonData, err := protojson.Marshal(bodyPtrMessage)
 			if err != nil {
 				return nil, fmt.Errorf("failed to marshal protobuf as JSON: %w", err)
 			}
-			// Content-Type already set to application/json above.
 			_, err = w.Write(jsonData)
 			return nil, err
 		}
@@ -640,10 +643,7 @@ func readQueryHeaderCookie(allowLegacyBinaryFallback bool, objPtr interface{}, b
 			if err != nil {
 				return "", err
 			}
-			contentType := ""
-			if request != nil {
-				contentType = request.Header.Get("Content-Type")
-			}
+			contentType := header.Get("Content-Type")
 			actualContentType, err := parseProtobufBody(allowLegacyBinaryFallback, contentType, buf, bodyPtrMessage)
 			if err != nil {
 				return "", err
