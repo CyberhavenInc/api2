@@ -7,7 +7,7 @@ import (
 	"net/http/httputil"
 	"sync/atomic"
 
-	"moul.io/http2curl"
+	"moul.io/http2curl/v2"
 )
 
 type HttpClient interface {
