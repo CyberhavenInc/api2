@@ -18,6 +18,7 @@ func GenerateOpenApiSpec(options *TypesGenConfig) {
 	panicIf(err)
 	typesFile, err := os.OpenFile(filepath.Join(options.OutDir, "openapi.json"), os.O_WRONLY|os.O_CREATE, 0755)
 	panicIf(err)
+	defer typesFile.Close()
 	parser := typegen.NewParser()
 	parser.CustomParse = CustomParse
 	allRoutes := []Route{}

@@ -1,0 +1,73 @@
+name: Setup Echo Go
+description: >
+  Installs Echo's Go toolchain (golang.echohq.com/dl) in place of
+  actions/setup-go on Linux and macOS runners and points the go command at
+  Echo's Go module proxy for the rest of the job. The toolchain is downloaded
+  with a short-lived netrc written by .github/scripts/echo-go-netrc.sh. Later
+  steps that resolve modules source the same script themselves, so the
+  Libraries key is only on disk while one of those steps runs.
+  GOPROXY has no ",direct" fallback on purpose, so a module Echo blocks, or a
+  step that runs without credentials, fails instead of being fetched elsewhere.
+  GOTOOLCHAIN=local keeps the go command on the installed build, so a go.mod
+  that needs a newer Go fails here instead of downloading a toolchain mid-job.
+  Bump go-version when go.mod's go line moves past it.
+  Echo publishes no Windows toolchain builds, so this action fails on Windows;
+  Windows jobs use actions/setup-go with Echo's module proxy instead.
+
+inputs:
+  echo-username:
+    description: Echo token username (the et-N value) for golang.echohq.com.
+    required: true
+  echo-key:
+    description: Echo Libraries key for golang.echohq.com.
+    required: true
+  go-version:
+    description: Echo toolchain build as shown in the index at golang.echohq.com/dl.
+    required: false
+    default: go1.26.10+echo.1
+
+runs:
+  using: composite
+  steps:
+    - name: Install Echo Go toolchain
+      shell: bash
+      env:
+        ECHO_LIBRARIES_USERNAME: ${{ inputs.echo-username }}
+        ECHO_LIBRARIES_KEY: ${{ inputs.echo-key }}
+        GO_VERSION: ${{ inputs.go-version }}
+      run: |
+        source "$GITHUB_WORKSPACE/.github/scripts/echo-go-netrc.sh"
+        case "$(uname -s)" in
+          Linux)  GO_OS=linux ;;
+          Darwin) GO_OS=darwin ;;
+          *) echo "::error::Echo publishes Go toolchain builds for linux and darwin only, not $(uname -s)"; exit 1 ;;
+        esac
+        case "$(uname -m)" in
+          x86_64|amd64)  GO_ARCH=amd64 ;;
+          aarch64|arm64) GO_ARCH=arm64 ;;
+          *) echo "::error::unsupported architecture: $(uname -m)"; exit 1 ;;
+        esac
+        GO_FILE="${GO_VERSION%%+*}.${GO_OS}-${GO_ARCH}+${GO_VERSION#*+}.tar.gz"
+        curl -fL --netrc-file "$NETRC" -o "$RUNNER_TEMP/$GO_FILE" "https://golang.echohq.com/dl/${GO_FILE}"
+        SUDO=""
+        if [ "$(id -u)" -ne 0 ]; then
+          SUDO="sudo"
+        fi
+        $SUDO rm -rf /usr/local/go
+        $SUDO tar -C /usr/local -xzf "$RUNNER_TEMP/$GO_FILE"
+        rm -f "$RUNNER_TEMP/$GO_FILE"
+        echo "/usr/local/go/bin" >> "$GITHUB_PATH"
+        INSTALLED="$(GOTOOLCHAIN=local /usr/local/go/bin/go env GOECHOVERSION)"
+        if [ "$INSTALLED" != "$GO_VERSION" ]; then
+          echo "::error::expected Echo Go toolchain $GO_VERSION but go env GOECHOVERSION reports '$INSTALLED'"
+          exit 1
+        fi
+        echo "Installed Echo Go toolchain $INSTALLED"
+
+    - name: Configure Echo Go proxy
+      shell: bash
+      run: |
+        {
+          echo "GOPROXY=https://golang.echohq.com"
+          echo "GOTOOLCHAIN=local"
+        } >> "$GITHUB_ENV"

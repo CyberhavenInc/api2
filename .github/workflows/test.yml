@@ -12,21 +12,71 @@ jobs:
           - ubuntu-latest
           - macos-latest
           - windows-latest
-        go-version:
-          - "1.25"
-          - "1.26"
+
+    defaults:
+      run:
+        shell: bash
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
-      - name: Set up Go ${{ matrix.go-version }}
-        uses: actions/setup-go@v4
+      # Linux and macOS: Echo's Go toolchain, which also verifies Echo-patched
+      # (+echo.N) modules against sum.golang.echohq.com.
+      - name: Install Echo Go toolchain
+        if: runner.os != 'Windows'
+        uses: ./.github/actions/setup-echo-go
         with:
-          go-version: ${{ matrix.go-version }}
+          echo-username: ${{ secrets.ECHO_LIBRARIES_USERNAME }}
+          echo-key: ${{ secrets.ECHO_LIBRARIES_KEY }}
+
+      # Windows: Echo publishes no Windows toolchain builds, so use upstream Go
+      # at the same version with modules still resolved through Echo's proxy.
+      # Upstream Go cannot query Echo's checksum database, so +echo.N modules
+      # are verified only against the go.sum lines committed from the Echo
+      # toolchain. The module cache is disabled so every run resolves through
+      # Echo rather than restoring modules fetched before the migration.
+      - name: Set up upstream Go (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Configure Echo Go proxy (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          {
+            echo "GOPROXY=https://golang.echohq.com"
+            echo "GOTOOLCHAIN=local"
+          } >> "$GITHUB_ENV"
+
+      - name: Download modules
+        env:
+          ECHO_LIBRARIES_USERNAME: ${{ secrets.ECHO_LIBRARIES_USERNAME }}
+          ECHO_LIBRARIES_KEY: ${{ secrets.ECHO_LIBRARIES_KEY }}
+        run: |
+          source "$GITHUB_WORKSPACE/.github/scripts/echo-go-netrc.sh"
+          go version
+          go env GOPROXY GOTOOLCHAIN GOECHOVERSION
+          go mod download -x
+          go mod verify
+
+      - name: Verify go.mod and go.sum are tidy
+        if: runner.os == 'Linux'
+        env:
+          ECHO_LIBRARIES_USERNAME: ${{ secrets.ECHO_LIBRARIES_USERNAME }}
+          ECHO_LIBRARIES_KEY: ${{ secrets.ECHO_LIBRARIES_KEY }}
+        run: |
+          source "$GITHUB_WORKSPACE/.github/scripts/echo-go-netrc.sh"
+          go mod tidy
+          if ! git diff --quiet go.mod go.sum; then
+            echo "::error::go mod tidy through Echo changes go.mod/go.sum. Run it with the Echo toolchain and commit the result."
+            git diff go.mod go.sum
+            exit 1
+          fi
 
       - name: Test
         run: |
-          go version
           go test -v ./...
 
       - name: Test with race
